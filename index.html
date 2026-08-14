@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOS計算システム</title>
+<style>
+ :root{
+  --bg: linear-gradient(135deg,#edf4ff,#dfeeff);
+  --card: #ffffff; --text: #222; --muted: #555;
+  --primary: #0066cc; --primary-hover: #004f9e; --border: #ddd;
+  --accent-bg: #f8fbff; --tri: #3b82f6;
+ }
+ [data-theme="dark"]{
+  --bg: linear-gradient(135deg,#0f172a,#1e293b);
+  --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8;
+  --primary: #3b82f6; --primary-hover: #2563eb; --border: #334155;
+  --accent-bg: #0f172a; --tri: #60a5fa;
+ }
+ *{ margin:0; padding:0; box-sizing:border-box; font-family:"Yu Gothic","Meiryo",sans-serif; }
+ body{ background:var(--bg); color:var(--text); padding:30px; transition:.3s; }
+.container{ max-width:850px; margin:auto; background:var(--card); border-radius:15px; padding:30px; box-shadow:0 10px 25px rgba(0,0,0,.25); }
+.header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+ h1{ text-align:center; color:var(--primary); flex:1; }
+.theme-toggle{ padding:8px 14px; font-size:14px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer; }
+.theme-toggle:hover{ background:var(--primary-hover); }
+.subtitle{ text-align:center; margin-bottom:30px; color:var(--muted); }
+ table{ width:100%; margin-bottom:25px; }
+ td{ padding:12px; }
+ input{ width:100%; padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text); font-size:16px; }
+ input:focus{ border-color:var(--primary); box-shadow:0 0 8px rgba(59,130,246,.4); outline:none; }
+ button{ width:100%; padding:15px; font-size:18px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer; }
+ button:hover{ background:var(--primary-hover); }
+ #output{ margin-top:25px; background:var(--accent-bg); border-left:6px solid var(--primary); padding:20px; border-radius:8px; font-size:16px; line-height:2; }
+.result{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); }
+.result:last-child{ border:none; }
+.triangle-wrap{ margin-top:25px; padding:20px; background:var(--accent-bg); border-radius:10px; border:1px solid var(--border); }
+.triangle-title{ text-align:center; font-weight:bold; margin-bottom:12px; color:var(--primary); }
+.triangle-svg{ width:100%; max-width:420px; margin:0 auto; display:block; }
+.vertex-btn{ fill:var(--card); stroke:var(--primary); stroke-width:3; cursor:pointer; transition:.2s; }
+.vertex-btn:hover{ stroke-width:5; filter:drop-shadow(0 0 6px var(--primary)); }
+.vertex-label{ font-size:14px; font-weight:bold; fill:var(--text); pointer-events:none; text-anchor:middle; }
+.center-text{ font-size:22px; font-weight:bold; fill:var(--primary); text-anchor:middle; } /* 22pxで大きく */
+.center-sub{ font-size:14px; fill:var(--muted); text-anchor:middle; }
+.holder-row{ display:flex; gap:10px; justify-content:center; margin-top:15px; flex-wrap:wrap; }
+.holder{ padding:10px 16px; border:2px solid var(--primary); border-radius:10px; background:var(--card); cursor:pointer; font-size:14px; transition:.2s; }
+.holder.active{ background:var(--primary); color:white; }
+.btn-row{ display:flex; gap:10px; margin-top:15px; }
+.price-btn{ flex:1; padding:10px; font-size:14px; background:var(--card); color:var(--primary); border:2px solid var(--primary); border-radius:8px; cursor:pointer; transition:.2s; }
+.price-btn.active{ background:var(--primary); color:white; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>SOS計算システム</h1>
+    <button class="theme-toggle" onclick="toggleTheme()">テーマ切替</button>
+  </div>
+  <p class="subtitle">B・S・O1・O2を入力し「計算」を押してください。</p>
+  <table>
+    <tr><td>B</td><td><input type="number" id="B" step="any"></td></tr>
+    <tr><td>S</td><td><input type="number" id="S" step="any"></td></tr>
+    <tr><td>O1</td><td><input type="number" id="O1" step="any"></td></tr>
+    <tr><td>O2</td><td><input type="number" id="O2" step="any"></td></tr>
+  </table>
+  <button onclick="calculate()">計算する</button>
+  <div id="output">計算結果がここへ表示されます。</div>
+  <div class="triangle-wrap">
+    <div class="triangle-title">ホルダー構成図</div>
+    <svg viewBox="0 0 300 260" class="triangle-svg" id="triangleSvg">
+      <polygon points="150,20 280,230 20,230" fill="none" stroke="var(--tri)" stroke-width="3"/>
+      <circle id="v1" class="vertex-btn" cx="150" cy="20" r="18"/>
+      <circle id="v2" class="vertex-btn" cx="280" cy="230" r="18"/>
+      <circle id="v3" class="vertex-btn" cx="20" cy="230" r="18"/>
+      <text x="150" y="25" class="vertex-label" id="label1"></text>
+      <text x="280" y="235" class="vertex-label" id="label2"></text>
+      <text x="20" y="235" class="vertex-label" id="label3"></text>
+
+      <text x="150" y="120" class="center-text" id="centerText">計算後に選択</text>
+      <text x="150" y="145" class="center-sub" id="centerSub"></text>
+    </svg>
+
+    <div class="btn-row" id="btnRow" style="display:none;">
+      <button class="price-btn" data-idx="0">S1</button>
+      <button class="price-btn" data-idx="1">S2</button>
+      <button class="price-btn" data-idx="2">結果</button>
+    </div>
+
+    <div class="holder-row">
+      <div class="holder" data-target="1">国債のホルダー</div>
+      <div class="holder" data-target="2">銘柄のホルダー</div>
+      <div class="holder" data-target="3">不動産のホルダー</div>
+    </div>
+  </div>
+</div>
+<script>
+// テーマ
+function toggleTheme(){
+  const html = document.documentElement;
+  const next = html.getAttribute("data-theme") === "dark"? "light" : "dark";
+  html.setAttribute("data-theme", next);
+  localStorage.setItem("sos-theme", next);
+}
+(function(){
+  const saved = localStorage.getItem("sos-theme");
+  if(saved){ document.documentElement.setAttribute("data-theme", saved); }
+  else if(window.matchMedia('(prefers-color-scheme: dark)').matches){
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+
+let data = {s1:null, s2:null, result:null};
+let currentIdx = 0;
+
+function updateCenterDisplay(){
+  const centerText = document.getElementById("centerText");
+  const centerSub = document.getElementById("centerSub");
+  if(data.s1 === null){
+    centerText.textContent = "計算後に選択";
+    centerSub.textContent = "";
+    return;
+  }
+  const vals = [data.s1, data.s2, data.result];
+  const names = ["S1", "S2", "結果"];
+  centerText.textContent = `${names[currentIdx]}: ${vals[currentIdx].toFixed(6)}`;
+  centerSub.textContent = "";
+
+  document.querySelectorAll(".price-btn").forEach((el,i)=>{
+    el.classList.toggle("active", i===currentIdx);
+  });
+}
+
+function calculate(){
+  const B=parseFloat(document.getElementById("B").value);
+  const S=parseFloat(document.getElementById("S").value);
+  const O1=parseFloat(document.getElementById("O1").value);
+  const O2=parseFloat(document.getElementById("O2").value);
+  if([B,S,O1,O2].some(isNaN)){ alert("正しい数値を入力してください。"); return; }
+  if(O1<=0 || O2<=0){ alert("O1とO2は0より大きい値を入力してください。"); return; }
+  const SUM = S - B + O1 + O2;
+  const T1 = (B - S) / O1;
+  const T2 = (B - S) / O2;
+  if(T1 <= 0 || T2 <= 0){ alert("T1,T2が0以下になります。BとS、O1とO2の値を確認してください。"); return; }
+  const d1 = Math.log(T1/T2);
+  const d2 = Math.log(T2/T1);
+  const S1 = S * (1 + d1);
+  const S2 = S * (1 + d2);
+  const O3 = (S1 - S2) / T1;
+  const O4 = (S1 - S2) / T2;
+  const highVal = Math.max(S1, S2);
+  const lowVal = Math.min(S1, S2);
+  const highResult = highVal - O1 - O2;
+  const lowResult = (O3 > 0 && O4 > 0)? (lowVal - O1 - O2) : null;
+  const resultToShow = (lowResult!== null)? lowResult : highResult;
+
+  data = {s1:S1, s2:S2, result:resultToShow};
+  currentIdx = 2; // 初期表示は「結果」
+
+  let html = `
+    <h2>計算結果</h2>
+    <div class="result"><span>S-B+O1+O2</span><b>${SUM.toFixed(6)}</b></div>
+    <div class="result"><span>T1</span><b>${T1.toFixed(6)}</b></div>
+    <div class="result"><span>T2</span><b>${T2.toFixed(6)}</b></div>
+    <div class="result"><span>d1</span><b>${d1.toFixed(6)}</b></div>
+    <div class="result"><span>d2</span><b>${d2.toFixed(6)}</b></div>
+    <div class="result"><span>S1</span><b>${S1.toFixed(6)}</b></div>
+    <div class="result"><span>S2</span><b>${S2.toFixed(6)}</b></div>
+    <div class="result"><span>O3</span><b>${O3.toFixed(6)}</b></div>
+    <div class="result"><span>O4</span><b>${O4.toFixed(6)}</b></div>
+    <hr style="margin:12px 0; border:none; border-top:1px dashed var(--border);">
+    <div class="result"><span>最終結果</span><b>${resultToShow.toFixed(6)}</b></div>
+  `;
+  document.getElementById("output").innerHTML = html;
+  document.getElementById("btnRow").style.display = "flex";
+  updateCenterDisplay();
+}
+
+// ボタン切替
+document.getElementById("btnRow").addEventListener("click", (e)=>{
+  if(e.target.classList.contains("price-btn")){
+    currentIdx = parseInt(e.target.dataset.idx);
+    updateCenterDisplay();
+  }
+});
+
+// 三角形ダイアグラム制御
+const holders = document.querySelectorAll(".holder");
+const labels = {
+ 1: {text:"国債", el:document.getElementById("label1")},
+ 2: {text:"銘柄", el:document.getElementById("label2")},
+ 3: {text:"不動産", el:document.getElementById("label3")}
+};
+document.getElementById("triangleSvg").addEventListener("click", (e)=>{
+  if(e.target.classList.contains("vertex-btn")){
+    if(data.s1!== null){
+      updateCenterDisplay();
+    }
+  }
+});
+holders.forEach(h=>{
+  h.addEventListener("click", ()=>{
+    const t = h.dataset.target;
+    holders.forEach(x=>x.classList.remove("active"));
+    h.classList.add("active");
+    Object.values(labels).forEach(l=>l.el.textContent="");
+    labels[t].el.textContent = labels[t].text;
+  });
+});
+Object.values(labels).forEach(l=>l.el.textContent="");
+</script>
+</body>
+</html>
